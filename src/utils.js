@@ -151,26 +151,34 @@ function ifUndefined(val1, val2) {
 
 /**
  * addEventListener with multiple events at once
- * @param {EventTarget} target
+ * @param {EventTarget|EventTarget[]} target
  * @param {String} types
  * @param {Function} handler
  */
 function addEventListeners(target, types, handler) {
-    each(splitStr(types), function(type) {
-        target.addEventListener(type, handler, false);
-    });
+    if(!Array.isArray(target))
+      target = [target];
+
+    for(var i=0; i<target.length; i++)
+        each(splitStr(types), function(type) {
+            target[i].addEventListener(type, handler, false);
+        });
 }
 
 /**
  * removeEventListener with multiple events at once
- * @param {EventTarget} target
+ * @param {EventTarget|EventTarget[]} target
  * @param {String} types
  * @param {Function} handler
  */
 function removeEventListeners(target, types, handler) {
-    each(splitStr(types), function(type) {
-        target.removeEventListener(type, handler, false);
-    });
+  if(!Array.isArray(target))
+      target = [target];
+
+  for(var i=0; i<target.length; i++)
+      each(splitStr(types), function(type) {
+          target[i].removeEventListener(type, handler, false);
+      });
 }
 
 /**
@@ -309,9 +317,25 @@ function uniqueId() {
 /**
  * get the window object of an element
  * @param {HTMLElement} element
- * @returns {DocumentView|Window}
+ * @returns {DocumentView|Window|DocumentView[]|Window[]}
  */
 function getWindowForElement(element) {
-    var doc = element.ownerDocument || element;
-    return (doc.defaultView || doc.parentWindow || window);
+    var doc = element.ownerDocument || element,
+        window = (doc.defaultView || doc.parentWindow || window),
+        parents = getAncestorWindows(window);
+
+  return parents.length === 0
+      ? window
+      : parents.concat(window);
+}
+
+/**
+ * get all windows that are an ancestor of the passed window
+ * @param {Window} window
+ * @returns {Window[]}
+ */
+function getAncestorWindows(window) {
+    if(!window.parent || window === window.parent)
+      return [];
+    return getAncestorWindows(window.parent).concat(window.parent);
 }

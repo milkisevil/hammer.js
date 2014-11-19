@@ -1,4 +1,4 @@
-/*! Hammer.JS - v2.0.4 - 2014-09-28
+/*! Hammer.JS - v2.0.4 - 2014-11-19
  * http://hammerjs.github.io/
  *
  * Copyright (c) 2014 Jorik Tangelder;
@@ -159,26 +159,34 @@ function ifUndefined(val1, val2) {
 
 /**
  * addEventListener with multiple events at once
- * @param {EventTarget} target
+ * @param {EventTarget|EventTarget[]} target
  * @param {String} types
  * @param {Function} handler
  */
 function addEventListeners(target, types, handler) {
-    each(splitStr(types), function(type) {
-        target.addEventListener(type, handler, false);
-    });
+    if(!Array.isArray(target))
+      target = [target];
+
+    for(var i=0; i<target.length; i++)
+        each(splitStr(types), function(type) {
+            target[i].addEventListener(type, handler, false);
+        });
 }
 
 /**
  * removeEventListener with multiple events at once
- * @param {EventTarget} target
+ * @param {EventTarget|EventTarget[]} target
  * @param {String} types
  * @param {Function} handler
  */
 function removeEventListeners(target, types, handler) {
-    each(splitStr(types), function(type) {
-        target.removeEventListener(type, handler, false);
-    });
+  if(!Array.isArray(target))
+      target = [target];
+
+  for(var i=0; i<target.length; i++)
+      each(splitStr(types), function(type) {
+          target[i].removeEventListener(type, handler, false);
+      });
 }
 
 /**
@@ -317,13 +325,28 @@ function uniqueId() {
 /**
  * get the window object of an element
  * @param {HTMLElement} element
- * @returns {DocumentView|Window}
+ * @returns {DocumentView|Window|DocumentView[]|Window[]}
  */
 function getWindowForElement(element) {
-    var doc = element.ownerDocument;
-    return (doc.defaultView || doc.parentWindow);
+    var doc = element.ownerDocument || element,
+        window = (doc.defaultView || doc.parentWindow || window),
+        parents = getAncestorWindows(window);
+
+  return parents.length === 0
+      ? window
+      : parents.concat(window);
 }
 
+/**
+ * get all windows that are an ancestor of the passed window
+ * @param {Window} window
+ * @returns {Window[]}
+ */
+function getAncestorWindows(window) {
+    if(!window.parent || window === window.parent)
+      return [];
+    return getAncestorWindows(window.parent).concat(window.parent);
+}
 var MOBILE_REGEX = /mobile|tablet|ip(ad|hone|od)|android/i;
 
 var SUPPORT_TOUCH = ('ontouchstart' in window);
@@ -1114,7 +1137,7 @@ TouchAction.prototype = {
             value = this.compute();
         }
 
-        if (NATIVE_TOUCH_ACTION) {
+        if (NATIVE_TOUCH_ACTION && this.manager.element.style) {
             this.manager.element.style[PREFIXED_TOUCH_ACTION] = value;
         }
         this.actions = value.toLowerCase().trim();
@@ -1981,7 +2004,7 @@ inherit(TapRecognizer, Recognizer, {
     },
 
     emit: function() {
-        if (this.state == STATE_RECOGNIZED ) {
+        if (this.state == STATE_RECOGNIZED) {
             this._input.tapCount = this.count;
             this.manager.emit(this.options.event, this._input);
         }
@@ -2055,12 +2078,12 @@ Hammer.defaults = {
      */
     preset: [
         // RecognizerClass, options, [recognizeWith, ...], [requireFailure, ...]
-        [RotateRecognizer, { enable: false }],
-        [PinchRecognizer, { enable: false }, ['rotate']],
-        [SwipeRecognizer,{ direction: DIRECTION_HORIZONTAL }],
-        [PanRecognizer, { direction: DIRECTION_HORIZONTAL }, ['swipe']],
+        [RotateRecognizer, {enable: false}],
+        [PinchRecognizer, {enable: false}, ['rotate']],
+        [SwipeRecognizer, {direction: DIRECTION_HORIZONTAL}],
+        [PanRecognizer, {direction: DIRECTION_HORIZONTAL}, ['swipe']],
         [TapRecognizer],
-        [TapRecognizer, { event: 'doubletap', taps: 2 }, ['tap']],
+        [TapRecognizer, {event: 'doubletap', taps: 2}, ['tap']],
         [PressRecognizer]
     ],
 
@@ -2381,6 +2404,9 @@ Manager.prototype = {
  */
 function toggleCssProps(manager, add) {
     var element = manager.element;
+    if (!element.style) {
+        return;
+    }
     each(manager.options.cssProps, function(value, name) {
         element.style[prefixed(element.style, name)] = add ? value : '';
     });
